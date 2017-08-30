@@ -17,7 +17,7 @@ const defaultOptions = {
 module.exports = function(source) {
     const callback = this.async()
 
-    const opts = Object.assign({}, loaderUtils.getOptions(this), defaultOptions)
+    const opts = Object.assign({}, defaultOptions, loaderUtils.getOptions(this))
 
     const tmpDir = tmp.dirSync({ unsafeCleanup: true });
 
