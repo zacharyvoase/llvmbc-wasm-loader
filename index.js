@@ -6,11 +6,8 @@ const shellEscape = require('shell-escape')
 const tmp = require('tmp')
 
 const defaultOptions = {
-    emscriptenCommand: (infile, outfile) => [
-        'emcc',
-        '-s', 'NO_EXIT_RUNTIME=1',
-        infile,
-        '-o', outfile
+    command: [
+        'emcc', '-s', 'NO_EXIT_RUNTIME=1'
     ]
 }
 
@@ -26,9 +23,12 @@ module.exports = function(source) {
     const outFile = path.join(tmpDir.name, "compiled." + bcDigest + ".js")
     const outWasm = path.join(tmpDir.name, "compiled." + bcDigest + ".wasm")
 
-    const cmd = opts.emscriptenCommand(this.resourcePath, outFile).concat(['-s', 'WASM=1', '--bind']);
+    const command = opts.command.concat([this.resourcePath, '-o', outFile, '-s', 'WASM=1'])
+    if (this.debug) {
+        console.log(shellEscape(command))
+    }
 
-    child_process.exec(shellEscape(cmd), { cwd: this.context }, (err, stdout, stderr) => {
+    child_process.exec(shellEscape(command), { cwd: this.context }, (err, stdout, stderr) => {
         if (err) {
             return callback(err, null);
         }
