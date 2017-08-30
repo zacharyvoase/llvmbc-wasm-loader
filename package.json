@@ -1,6 +1,6 @@
 {
   "name": "llvmbc-wasm-loader",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "author": "Zack Voase <zack@meat.io>",
   "description": "Webpack loader which converts LLVM bytecode to WASM using Emscripten",
   "homepage": "https://github.com/zacharyvoase/llvmbc-wasm-loader",
