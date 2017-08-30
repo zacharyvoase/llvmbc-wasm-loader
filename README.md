@@ -19,67 +19,131 @@ You'll also need a working Emscripten installation, as the loader shells out to
 
 Create a simple C++ file:
 
-    // mylibrary.cpp
-    #include <emscripten.h>
+```cpp
+// mylibrary.cpp
+#include <emscripten.h>
 
-    extern "C" EMSCRIPTEN_KEEPALIVE int add(int x, int y) {
-      return x + y;
-    }
+extern "C" EMSCRIPTEN_KEEPALIVE int add(int x, int y) {
+  return x + y;
+}
+```
 
 Use `em++` to compile it to LLVM Intermediate Representation bytecode:
 
-    $ em++ mylibrary.cpp -o mylibrary.bc
+```bash
+$ em++ mylibrary.cpp -o mylibrary.bc
+```
 
 `require()` it from your JS file:
 
-    // mylibrary.js
-    var lib = require('llvmbc-wasm-loader!./mylibrary.bc')
+```js
+// mylibrary.js
+var lib = require('llvmbc-wasm-loader!./mylibrary.bc')
 
-    // You need to wait for this Promise to complete:
-    lib.ready.then(function() {
-      console.log("1 + 2 = " + lib._add(1, 2));
-    }
+// You need to wait for this Promise to complete:
+lib.ready.then(function() {
+  console.log("1 + 2 = " + lib._add(1, 2));
+}
+```
 
 Write a webpack config:
 
-    // webpack.config.js
-    module.exports = {
-      target: 'node',
-      entry: './mylibrary.js',
-      output: {
-        filename: 'bundle.js'
-      }
-    }
+```js
+// webpack.config.js
+module.exports = {
+  target: 'node',
+  entry: './mylibrary.js',
+  output: {
+    filename: 'bundle.js'
+  }
+}
+```
 
 Compile with webpack:
 
-    $ webpack
+```bash
+$ webpack
+```
 
 And run the bundle with node:
 
-    $ node bundle.js
-    1 + 2 = 3
+```bash
+$ node bundle.js
+1 + 2 = 3
+```
 
 
 ## Loader Options
 
 ### `emscriptenCommand`
 
-This should be a function which accepts an input and output file, and returns a
-list representing the `emcc` command line to be invoked to produce the `.js`
-and `.wasm` files for a given input. The default is:
+This should be a list representing the `emcc` command line to be invoked to
+produce the `.js` and `.wasm` files for a given input. The default is:
 
-    (infile, outfile) => [
-          'emcc',
-          // Prevents the runtime from being shutdown after invocation of a
-          // `main()` function, if any. This allows for library usage.
-          '-s', 'NO_EXIT_RUNTIME=1',
-          infile,
-          '-o', outfile
-      ]
+```js
+[
+  'emcc',
+  // Prevents the runtime from being shutdown after invocation of a
+  // `main()` function, if any. This allows for library usage.
+  '-s', 'NO_EXIT_RUNTIME=1',
+]
+```
 
-**N.B.**: `-s WASM=1` will be appended to all `emcc` invocations; without it,
-there will be no WASM file to generate.
+To all command lines, the following necessary arguments will be appended:
+
+```js
+[
+  '-s', 'WASM=1', // Necessary to produce WASM output
+  INFILE,
+  '-o', OUTFILE
+]
+```
+
+If you're using multiple distinct `emcc` invocations in your application, we
+recommend using [`resourceQuery`][rq] to differentiate between them, rather
+than specifying rather unwieldy commands in the loader query syntax. In your
+`webpack.config.js`:
+
+```js
+module.exports = {
+  // ...
+  module: {
+    rules: {
+      {
+        test: /\.bc$/,
+        // `oneOf` will pick the first matching rule:
+        oneOf: [
+          // `import '.../foo.bc?withFunctionPointers'` will resolve to these options:
+          {
+            resourceQuery: /^\?withFunctionPointers$/,
+            use: {
+              loader: 'llvmbc-wasm-loader',
+              options: {
+                command: ['emcc', '-s', 'NO_EXIT_RUNTIME=1', '-s', 'RESERVED_FUNCTION_POINTERS=1']
+              }
+            }
+          },
+          // All other imports will resolve to the default config:
+          {
+            use: 'llvmbc-wasm-loader'
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Then, from your application:
+
+```js
+import lib1 from './lib1.bc?withFunctionPointers'
+import lib2 from './lib2.bc'
+
+// ...
+```
+
+[rq]: https://webpack.js.org/configuration/module/#rule-resourcequery
 
 
 ## License
